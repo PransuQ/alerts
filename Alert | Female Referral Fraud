@@ -1,0 +1,7 @@
+select case when countt is not null then 'possible_referral_fruad' end as female_referral_fruad
+
+from (select count(dw.id) as countt
+from
+dating_wallettransaction dw 
+where comments = 'SUCCESFULLY CREDITED REFERRAL REWARD' and date(dw.created_at) = date(now()) and date_part('hour',created_at) = date_part('hour',now())) aa
+where countt > 20
