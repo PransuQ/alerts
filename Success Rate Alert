@@ -1,0 +1,35 @@
+WITH success_rate_data AS (
+    SELECT 
+        date_trunc('hour', created_at) AS hour_start,
+        COUNT(CASE WHEN status = 'SUCCESS' THEN order_id END) * 100.0 / COUNT(order_id) AS success_rate
+    FROM 
+        dating_coinorder
+    WHERE 
+        created_at >= date_trunc('hour', now() - interval '2 hours') 
+        AND created_at < date_trunc('hour', now()) 
+        and is_international_order = false
+    GROUP BY 
+        hour_start
+),
+
+comparison AS (
+    SELECT 
+        hour_start,
+        success_rate,
+        LAG(success_rate) OVER (ORDER BY hour_start) AS previous_hour_rate
+    FROM 
+        success_rate_data
+)
+
+SELECT 
+    hour_start,
+    success_rate,
+    previous_hour_rate,
+    (previous_hour_rate - success_rate) AS drop_percentage
+FROM 
+    comparison
+WHERE 
+    (previous_hour_rate - success_rate) >= 10
+ORDER BY 
+    hour_start DESC
+LIMIT 1;
