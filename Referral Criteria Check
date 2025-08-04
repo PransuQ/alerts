@@ -1,0 +1,13 @@
+SELECT DISTINCT 
+  dr.referred_id
+FROM
+  dating_referredbyinfo dr
+LEFT JOIN dating_useraggregations du 
+  ON du.id = dr.user_data_id
+LEFT JOIN dating_kycverification dk 
+  ON dk.id = dr.kyc_id
+WHERE 
+  is_female_referral = true
+  AND is_claimed = true
+  AND (dk.properties -> 'response' ->> 'valid') NOT IN ('true')
+  AND total_yr_earn < 20
