@@ -1,0 +1,31 @@
+WITH registration_counts AS (
+    SELECT 
+        COUNT(CASE WHEN created_at >= date_trunc('hour', now() - interval '1 hour') AND created_at < date_trunc('hour', now()) THEN id ELSE NULL END) AS reg_last_hour_today,
+        COUNT(CASE WHEN created_at >= date_trunc('hour', now() - interval '25 hour') AND created_at < date_trunc('hour', now() - interval '24 hour') THEN id ELSE NULL END) AS reg_last_hour_yesterday
+    FROM 
+        dating_customuser
+    WHERE 
+        is_verified != 'pending'
+        AND first_id IS NULL
+        AND gender_id = 1
+        AND created_at >= date_trunc('hour', now() - interval '25 hour') -- Ensure we only consider data from the last 25 hours
+),
+
+comparison AS (
+    SELECT 
+        reg_last_hour_today,
+        reg_last_hour_yesterday,
+        (reg_last_hour_yesterday - reg_last_hour_today) * 100.0 / reg_last_hour_yesterday AS drop_percentage
+    FROM 
+        registration_counts
+)
+
+SELECT 
+    reg_last_hour_today,
+    reg_last_hour_yesterday,
+    drop_percentage
+FROM 
+    comparison
+WHERE 
+    drop_percentage >= 40;
+
