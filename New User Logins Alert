@@ -1,0 +1,39 @@
+WITH TodayLastHour AS (
+    SELECT
+        COUNT(DISTINCT device_id) AS today_last_hour_count
+    FROM
+        dating_usermobileno
+    WHERE
+        app_client_id = 1
+        AND created_at >= date_trunc('hour', NOW() - INTERVAL '1 hour')
+        AND created_at < date_trunc('hour', NOW())
+        AND properties ->> 'is_sign_up' = 'true'
+),
+YesterdayLastHour AS (
+    SELECT
+        COUNT(DISTINCT device_id) AS yesterday_last_hour_count
+    FROM
+        dating_usermobileno
+    WHERE
+        app_client_id = 1
+        AND created_at >= date_trunc('hour', NOW() - INTERVAL '25 hour')
+        AND created_at < date_trunc('hour', NOW() - INTERVAL '24 hour')
+        AND properties ->> 'is_sign_up' = 'true'
+)
+SELECT
+    (SELECT EXTRACT(HOUR FROM NOW() - INTERVAL '1 hour')) AS hour,
+    (SELECT today_last_hour_count FROM TodayLastHour) AS today_last_hour_count,
+    (SELECT yesterday_last_hour_count FROM YesterdayLastHour) AS yesterday_last_hour_count,
+    CASE
+        WHEN (SELECT yesterday_last_hour_count FROM YesterdayLastHour) > 0 THEN
+            (CAST((SELECT today_last_hour_count FROM TodayLastHour) AS DECIMAL) - (SELECT yesterday_last_hour_count FROM YesterdayLastHour)) * 100 / (SELECT yesterday_last_hour_count FROM YesterdayLastHour)
+        ELSE
+            NULL
+    END AS percentage_difference
+WHERE
+    CASE
+        WHEN (SELECT yesterday_last_hour_count FROM YesterdayLastHour) > 0 THEN
+            ABS((CAST((SELECT today_last_hour_count FROM TodayLastHour) AS DECIMAL) - (SELECT yesterday_last_hour_count FROM YesterdayLastHour)) * 100 / (SELECT yesterday_last_hour_count FROM YesterdayLastHour)) >= 20
+        ELSE
+            FALSE
+    END;
