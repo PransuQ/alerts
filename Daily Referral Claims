@@ -1,0 +1,7 @@
+select date(created_at), count(id), sum(txn_amount) as total_amount
+from
+dating_wallettransaction dw 
+where comments = 'SUCCESFULLY CREDITED REFERRAL REWARD' and date(created_at) > '1 april 2025'
+group by 1 
+having sum(txn_amount) > 40000
+order by 1 desc
