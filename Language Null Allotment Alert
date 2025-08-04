@@ -1,0 +1,55 @@
+WITH HourlyData AS (
+    SELECT
+        DATE_PART('hour', created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') AS install_hour_ist,
+        DATE(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') AS install_date_ist,
+        SUM(CASE WHEN properties ->> 'primary_language' IS NULL THEN 1 ELSE 0 END) AS null_language_count,
+        COUNT(id) AS total_installs
+    FROM
+        dating_customuser
+    WHERE
+        -- Consider data for the last hour of yesterday and today (IST)
+        created_at >= (NOW() AT TIME ZONE 'Asia/Kolkata' - INTERVAL '25 hour') AT TIME ZONE 'UTC'
+        AND created_at < (NOW() AT TIME ZONE 'Asia/Kolkata' - INTERVAL '0 hour') AT TIME ZONE 'UTC'
+    GROUP BY 1, 2
+),
+ComparisonData AS (
+    SELECT
+        SUM(CASE WHEN install_date_ist = CURRENT_DATE AND install_hour_ist = EXTRACT(HOUR FROM (NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 hour') THEN null_language_count ELSE 0 END) AS today_nulls,
+        SUM(CASE WHEN install_date_ist = CURRENT_DATE AND install_hour_ist = EXTRACT(HOUR FROM (NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 hour') THEN total_installs ELSE 0 END) AS today_total,
+        SUM(CASE WHEN install_date_ist = CURRENT_DATE - INTERVAL '1 day' AND install_hour_ist = EXTRACT(HOUR FROM (NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 hour') THEN null_language_count ELSE 0 END) AS yesterday_nulls,
+        SUM(CASE WHEN install_date_ist = CURRENT_DATE - INTERVAL '1 day' AND install_hour_ist = EXTRACT(HOUR FROM (NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 hour') THEN total_installs ELSE 0 END) AS yesterday_total,
+        EXTRACT(HOUR FROM (NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 hour') AS last_hour_ist
+    FROM
+        HourlyData
+)
+SELECT
+    last_hour_ist AS hour_ist,
+    today_nulls,
+    today_total,
+    CASE
+        WHEN today_total > 0 THEN (CAST(today_nulls AS DECIMAL) * 100) / today_total
+        ELSE NULL
+    END AS today_null_language_percentage,
+    yesterday_nulls,
+    yesterday_total,
+    CASE
+        WHEN yesterday_total > 0 THEN (CAST(yesterday_nulls AS DECIMAL) * 100) / yesterday_total
+        ELSE NULL
+    END AS yesterday_null_language_percentage,
+    CASE
+        WHEN today_total > 0 AND yesterday_total > 0 THEN
+            ((CAST(today_nulls AS DECIMAL) * 100) / today_total) - ((CAST(yesterday_nulls AS DECIMAL) * 100) / yesterday_total)
+        ELSE
+            NULL
+    END AS percentage_difference
+FROM
+    ComparisonData
+WHERE
+    ABS(
+        CASE
+            WHEN today_total > 0 AND yesterday_total > 0 THEN
+                ((CAST(today_nulls AS DECIMAL) * 100) / today_total) - ((CAST(yesterday_nulls AS DECIMAL) * 100) / yesterday_total)
+            ELSE
+                NULL
+        END
+    ) >= 5
