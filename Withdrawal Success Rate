@@ -1,0 +1,44 @@
+WITH success_rate_data AS (
+    SELECT 
+        date_trunc('hour', created_at) AS hour_start,
+        COUNT(CASE WHEN txn_status = 'COMPLETED' THEN txn_id END) * 100.0 / COUNT(txn_id) AS withdrawal_sr
+    FROM 
+        dating_wallettransaction
+    WHERE 
+        created_at >= date_trunc('hour', now() - interval '25 hour')
+        AND receiver_account_type = 'UPI'
+    GROUP BY 
+        hour_start
+),
+
+comparison AS (
+    SELECT 
+        -- Today's last hour success rate
+        MAX(CASE WHEN hour_start = date_trunc('hour', now() - interval '1 hour') THEN withdrawal_sr END) AS last_hour_success_rate_today,
+        -- Same hour yesterday's success rate
+        MAX(CASE WHEN hour_start = date_trunc('hour', now() - interval '25 hour') THEN withdrawal_sr END) AS last_hour_success_rate_yesterday
+    FROM 
+        success_rate_data
+),
+
+results AS (
+    SELECT 
+        last_hour_success_rate_today,
+        last_hour_success_rate_yesterday,
+        -- Calculate the percentage drop between today's last hour and yesterday's same hour
+        CASE 
+            WHEN last_hour_success_rate_yesterday = 0 THEN NULL  -- Avoid division by zero
+            ELSE (last_hour_success_rate_yesterday - last_hour_success_rate_today) 
+        END AS drop_percentage
+    FROM 
+        comparison
+)
+
+SELECT 
+    last_hour_success_rate_today,
+    last_hour_success_rate_yesterday,
+    drop_percentage
+FROM 
+    results
+WHERE 
+    drop_percentage >= 40;
