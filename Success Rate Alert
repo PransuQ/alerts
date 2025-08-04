@@ -4,7 +4,7 @@ WITH success_rate_data AS (
         COUNT(CASE WHEN status = 'SUCCESS' THEN order_id END) * 100.0 / COUNT(order_id) AS success_rate
     FROM 
         dating_coinorder
-    WHERE 
+    WHERE  
         created_at >= date_trunc('hour', now() - interval '2 hours') 
         AND created_at < date_trunc('hour', now()) 
         and is_international_order = false
