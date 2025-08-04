@@ -1,0 +1,42 @@
+WITH HourlyRoomCreations AS (
+    SELECT
+        DATE_PART('hour', created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') AS creation_hour_ist,
+        DATE(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') AS creation_date_ist,
+        COUNT(dg.id) AS room_count
+    FROM
+        dating_game dg
+    WHERE
+        dg.properties ->> 'is_star_user' IS NULL
+        AND dg.properties ->> 'is_celebrity' IS NULL
+        AND dg.type_id IN (7, 9)
+        AND created_at >= (NOW() AT TIME ZONE 'Asia/Kolkata' - INTERVAL '25 hour') AT TIME ZONE 'UTC'
+        AND created_at < (NOW() AT TIME ZONE 'Asia/Kolkata' - INTERVAL '0 hour') AT TIME ZONE 'UTC'
+    GROUP BY 1, 2
+),
+RoomComparison AS (
+    SELECT
+        SUM(CASE WHEN creation_date_ist = CURRENT_DATE AND creation_hour_ist = EXTRACT(HOUR FROM (NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 hour') THEN room_count ELSE 0 END) AS today_rooms,
+        SUM(CASE WHEN creation_date_ist = CURRENT_DATE - INTERVAL '1 day' AND creation_hour_ist = EXTRACT(HOUR FROM (NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 hour') THEN room_count ELSE 0 END) AS yesterday_rooms,
+        EXTRACT(HOUR FROM (NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 hour') AS last_hour_ist
+    FROM
+        HourlyRoomCreations
+)
+SELECT
+    last_hour_ist AS hour_ist, 
+    today_rooms,
+    yesterday_rooms,
+    CASE
+        WHEN yesterday_rooms > 0 THEN
+            (CAST(today_rooms - yesterday_rooms AS DECIMAL) * 100) / yesterday_rooms
+        ELSE
+            NULL
+    END AS percentage_difference
+FROM
+    RoomComparison
+WHERE
+    CASE
+        WHEN yesterday_rooms > 0 THEN
+            ABS((CAST(today_rooms - yesterday_rooms AS DECIMAL) * 100) / yesterday_rooms) >= 5
+        ELSE
+            FALSE
+    END
