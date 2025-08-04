@@ -1,0 +1,5 @@
+SELECT
+    TRIM(TO_CHAR(EXTRACT(HOUR FROM (NOW() - (SELECT created_at FROM dating_coinorder WHERE created_at > date(NOW()) ORDER BY id DESC LIMIT 1))), '99')) || ' Hours ' ||
+    TRIM(TO_CHAR(EXTRACT(MINUTE FROM (NOW() - (SELECT created_at FROM dating_coinorder WHERE created_at > date(NOW()) ORDER BY id DESC LIMIT 1))), '99')) || ' minutes' AS time_difference
+FROM
+    (SELECT 1) AS dummy;
