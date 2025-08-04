@@ -1,0 +1,47 @@
+WITH metrics AS (
+    SELECT 
+        -- Revenue and transactions for the last hour today
+        SUM(CASE WHEN created_at >= date_trunc('hour', now() - interval '1 hour') 
+                 AND created_at < date_trunc('hour', now()) THEN amount ELSE 0 END) AS revenue_last_hour_today,
+                 
+        COUNT(CASE WHEN created_at >= date_trunc('hour', now() - interval '1 hour') 
+                   AND created_at < date_trunc('hour', now()) THEN id ELSE NULL END) AS txns_last_hour_today,
+        
+        -- Revenue and transactions for the same hour yesterday
+        SUM(CASE WHEN created_at >= date_trunc('hour', now() - interval '25 hour') 
+                 AND created_at < date_trunc('hour', now() - interval '24 hour') THEN amount ELSE 0 END) AS revenue_last_hour_yesterday,
+                 
+        COUNT(CASE WHEN created_at >= date_trunc('hour', now() - interval '25 hour') 
+                   AND created_at < date_trunc('hour', now() - interval '24 hour') THEN id ELSE NULL END) AS txns_last_hour_yesterday
+    FROM 
+        dating_coinorder
+    WHERE 
+        status = 'SUCCESS'
+),
+
+comparison AS (
+    SELECT 
+        revenue_last_hour_today,
+        revenue_last_hour_yesterday,
+        txns_last_hour_today,
+        txns_last_hour_yesterday,
+        
+        -- Calculate the percentage drop in revenue and transactions
+        (revenue_last_hour_yesterday - revenue_last_hour_today) * 100.0 / revenue_last_hour_yesterday AS revenue_drop_percentage,
+        (txns_last_hour_yesterday - txns_last_hour_today) * 100.0 / txns_last_hour_yesterday AS txns_drop_percentage
+    FROM 
+        metrics
+)
+
+SELECT 
+    revenue_last_hour_today,
+    revenue_last_hour_yesterday,
+    txns_last_hour_today,
+    txns_last_hour_yesterday,
+    revenue_drop_percentage,
+    txns_drop_percentage
+FROM 
+    comparison
+WHERE 
+    revenue_drop_percentage >= 15 
+    OR txns_drop_percentage >= 15;
