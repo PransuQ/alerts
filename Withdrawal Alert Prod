@@ -1,0 +1,8 @@
+select 
+case when (aa is null or aa = 0) and date_part('hour',now()) not in (0) then 'Withdrawal_not_working' end as withdrawal_alert
+
+from (select count(id) filter (where date_part('minute',created_at) = date_part('minute',now()) and date(created_at) = date(now())) as aa
+from
+dating_wallettransaction
+where receiver_account_type = 'UPI' and date_part('minute',created_at) = date_part('minute',now()) and date(created_at) = date(now())) bb
+where aa is null or aa = 0 
