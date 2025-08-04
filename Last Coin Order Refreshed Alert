@@ -1,5 +1,11 @@
 SELECT
-    TRIM(TO_CHAR(EXTRACT(HOUR FROM (NOW() - (SELECT created_at FROM dating_coinorder WHERE created_at > date(NOW()) ORDER BY id DESC LIMIT 1))), '99')) || ' Hours ' ||
-    TRIM(TO_CHAR(EXTRACT(MINUTE FROM (NOW() - (SELECT created_at FROM dating_coinorder WHERE created_at > date(NOW()) ORDER BY id DESC LIMIT 1))), '99')) || ' minutes' AS time_difference
-FROM
-    (SELECT 1) AS dummy;
+    TRIM(TO_CHAR(EXTRACT(HOUR FROM time_diff), '99')) || ' Hours ' ||
+    TRIM(TO_CHAR(EXTRACT(MINUTE FROM time_diff), '99')) || ' minutes' AS time_difference
+FROM (
+    SELECT NOW() - created_at AS time_diff
+    FROM dating_coinorder
+    WHERE created_at > date(NOW())
+    ORDER BY id DESC
+    LIMIT 1
+) AS latest
+WHERE EXTRACT(EPOCH FROM time_diff) / 60 > 15;
